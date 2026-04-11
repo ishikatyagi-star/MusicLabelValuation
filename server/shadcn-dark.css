@@ -1,0 +1,182 @@
+/* shadcn-dark.css */
+
+/* Global root variables matching shadcn dark mode */
+:root {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --primary: 0 0% 98%;
+  --primary-foreground: 240 5.9% 10%;
+  --secondary: 240 3.7% 15.9%;
+  --secondary-foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --accent: 240 3.7% 15.9%;
+  --accent-foreground: 0 0% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --ring: 240 4.9% 83.9%;
+  --radius: 0.5rem;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+}
+
+/* Base Gradio Overrides */
+.gradio-container {
+  background-color: hsl(var(--background)) !important;
+  border: none !important;
+}
+
+/* Card-like containers (Groups, Rows, Forms) */
+.gradio-container .box, 
+.gradio-container .form,
+.gradio-container .panel {
+  background-color: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: hsl(var(--foreground)) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.025em;
+}
+
+h1 { font-size: 2.25rem !important; }
+h2 { font-size: 1.5rem !important; margin-bottom: 1rem !important; }
+
+/* Buttons */
+.gradio-container button.primary {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  font-weight: 500 !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+  border: none !important;
+  transition: opacity 0.2s ease;
+}
+
+.gradio-container button.primary:hover {
+  opacity: 0.9 !important;
+}
+
+.gradio-container button.secondary {
+  background-color: transparent !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  font-weight: 500 !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+}
+
+.gradio-container button.secondary:hover {
+  background-color: hsl(var(--accent)) !important;
+  color: hsl(var(--accent-foreground)) !important;
+}
+
+/* Inputs and Textareas */
+.gradio-container input, .gradio-container textarea, .gradio-container select {
+  background-color: transparent !important;
+  border: 1px solid hsl(var(--input)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+}
+
+.gradio-container input:focus, .gradio-container textarea:focus, .gradio-container select:focus {
+  outline: 2px solid hsl(var(--ring)) !important;
+  outline-offset: 2px;
+  border-color: transparent !important;
+}
+
+/* Dropdowns */
+.gradio-container .wrap.svelte-1o68gea {
+    background-color: transparent !important;
+    border: 1px solid hsl(var(--input)) !important;
+}
+.gradio-container .wrap.svelte-1o68gea:focus-within {
+    outline: 2px solid hsl(var(--ring)) !important;
+    outline-offset: 2px;
+}
+
+/* Chatbot */
+.gradio-container .chatbot {
+  background-color: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: var(--radius) !important;
+}
+
+.gradio-container .chatbot .message.user {
+  background-color: hsl(var(--primary)) !important;
+  color: hsl(var(--primary-foreground)) !important;
+  border-radius: var(--radius) !important;
+}
+
+.gradio-container .chatbot .message.bot {
+  background-color: hsl(var(--muted)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-radius: var(--radius) !important;
+}
+
+/* JSON Viewer / DataFrames */
+.gradio-container .json, .gradio-container table {
+  background-color: transparent !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: calc(var(--radius) - 2px) !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+/* Markdown Text */
+.gradio-container .prose p, .gradio-container .prose span {
+  color: hsl(var(--muted-foreground)) !important;
+  font-size: 0.875rem;
+}
+.gradio-container .prose strong {
+    color: hsl(var(--foreground)) !important;
+}
+
+/* Labels */
+.gradio-container label span {
+    color: hsl(var(--foreground)) !important;
+    font-weight: 500 !important;
+    font-size: 0.875rem !important;
+}
+
+/* Custom layout classes */
+.dashboard-header {
+    border-bottom: 1px solid hsl(var(--border));
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.metric-card {
+    padding: 1.5rem;
+    background-color: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: hsl(var(--foreground));
+}
+.metric-label {
+    font-size: 0.875rem;
+    color: hsl(var(--muted-foreground));
+}
+
+/* Hide default gradio padding/margins strategically */
+.gradio-container .gap {
+    gap: 1.5rem !important;
+}

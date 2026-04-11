@@ -2,6 +2,9 @@ from openenv.core.env_server.http_server import create_app
 from music_catalog_pe_env.models import CatalogAction, CatalogObservation
 from music_catalog_pe_env.env import MusicCatalogPEEnvironment
 
+import gradio as gr
+from .ui import create_ui
+
 app = create_app(
     env=MusicCatalogPEEnvironment, 
     action_cls=CatalogAction, 
@@ -9,9 +12,9 @@ app = create_app(
     env_name="music_catalog_pe_env"
 )
 
-@app.get("/")
-def read_root():
-    return {"status": "ok", "message": "Music Catalog PE Environment is running. Supported endpoints: /health, /reset, /step, /state"}
+# Mount the interactive dashboard exactly at root
+demo = create_ui()
+app = gr.mount_gradio_app(app, demo, path="/")
 
 def main():
     import uvicorn
