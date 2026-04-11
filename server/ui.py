@@ -129,6 +129,11 @@ def run_agent_sync(task_id: str, api_key: str):
         reward = max(0.01, min(0.99, float(result.reward if result.reward is not None else 0.01)))
         
         log_lines.append(f"         → reward: {reward:.4f}")
+        if result.warnings:
+            log_lines.append(f"         ⚠️ WARNING: {', '.join(result.warnings)}")
+            if "error" in result.result_payload:
+                err_msg = str(result.result_payload['error']).split('\n')[0] # First line of error
+                log_lines.append(f"         🚨 ERROR: {err_msg}")
         
         history_list.append(f"Step {step}: {action.action_type} -> reward {reward:+.2f}")
         last_obs = result.model_dump()
