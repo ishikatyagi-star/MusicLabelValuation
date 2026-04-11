@@ -18,6 +18,12 @@ TEMPERATURE = 0.7
 MAX_TOKENS = 500
 SUCCESS_SCORE_THRESHOLD = 0.5  # Need at least 50% score
 
+
+def _clamp_score(val: float) -> float:
+    """Absolute safety net: score is ALWAYS strictly in (0, 1)."""
+    return max(0.01, min(0.99, float(val)))
+
+
 SYSTEM_PROMPT = textwrap.dedent(
     """
     You are an elite music rights analyst evaluating a catalog for acquisition.
@@ -37,19 +43,24 @@ SYSTEM_PROMPT = textwrap.dedent(
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
-def log_step(step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
+def log_step(task: str, step: int, action: str, reward: float, done: bool, error: Optional[str]) -> None:
     error_val = error if error else "null"
     done_val = str(done).lower()
     # Format action string to fit safely in one line
     action_str = action.replace('\n', ' ').replace('\r', '')
+    # Clamp reward in every step log too
+    clamped_reward = _clamp_score(reward)
     print(
-        f"[STEP] step={step} action={action_str} reward={reward:.2f} done={done_val} error={error_val}",
+        f"[STEP] task={task} step={step} action={action_str} reward={clamped_reward:.2f} done={done_val} error={error_val}",
         flush=True,
     )
 
-def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> None:
-    rewards_str = ",".join(f"{r:.2f}" for r in rewards)
-    print(f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={rewards_str}", flush=True)
+def log_end(task: str, success: bool, steps: int, score: float, rewards: List[float]) -> None:
+    # CRITICAL: clamp score RIGHT HERE at the print boundary -- impossible to bypass
+    final_score = _clamp_score(score)
+    clamped_rewards = [_clamp_score(r) for r in rewards]
+    rewards_str = ",".join(f"{r:.2f}" for r in clamped_rewards)
+    print(f"[END] task={task} success={str(success).lower()} steps={steps} score={final_score:.2f} rewards={rewards_str}", flush=True)
 
 def build_user_prompt(step: int, last_obs: dict, last_reward: float, history: List[str]) -> str:
     history_block = "\n".join(history[-4:]) if history else "None"
@@ -100,19 +111,13 @@ def get_model_action(client: OpenAI, step: int, last_obs: dict, last_reward: flo
 async def run_task(task_id: str, client: OpenAI) -> None:
     log_start(task=task_id, env=BENCHMARK, model=MODEL_NAME)
     
-    # We run pointing to localhost for baseline
-    # Or from docker image, but for simplicity of hackathon, we instantiate directly or use EnvClient connected locally
-    # If using EnvClient locally started app:
-    base_url = "http://localhost:8000"
-    
     history: List[str] = []
     rewards: List[float] = []
     steps_taken = 0
-    score = 0.0
+    # CRITICAL: Initialize score to a VALID value, never 0.0
+    score = 0.01
     success = False
     
-    # Direct connect to the server (must be running in another process)
-    # Alternatively instantiate the class directly for inference baseline: from music_catalog_pe_env.env import ...
     try:
         # We use direct instantiation here so inference script works without standalone server
         from music_catalog_pe_env.env import MusicCatalogPEEnvironment
@@ -120,7 +125,7 @@ async def run_task(task_id: str, client: OpenAI) -> None:
         
         result = env_instance.reset(task_id=task_id)
         last_obs = result.model_dump()
-        last_reward = result.reward
+        last_reward = _clamp_score(result.reward)
         
         max_steps = result.max_steps or 25
         
@@ -134,7 +139,8 @@ async def run_task(task_id: str, client: OpenAI) -> None:
             result = env_instance.step(action)
             obs_dump = result.model_dump()
             
-            reward = result.reward or 0.0
+            # CRITICAL: Clamp reward immediately, never allow raw 0.0 or 1.0
+            reward = _clamp_score(result.reward if result.reward is not None else 0.01)
             done = result.done
             # Detect error from observation
             error = None
@@ -148,21 +154,24 @@ async def run_task(task_id: str, client: OpenAI) -> None:
             last_obs = obs_dump
             last_reward = reward
             
-            log_step(step=step, action=action_json_str, reward=reward, done=done, error=error)
+            log_step(task=task_id, step=step, action=action_json_str, reward=reward, done=done, error=error)
             history.append(f"Step {step}: {action.action_type} -> reward {reward:+.2f}")
             
             if done:
                 # If finished, the final reward is the score
                 score = reward
                 break
-                
-        score = max(0.01, min(0.99, float(score)))
+        
+        # Clamp score one more time for safety
+        score = _clamp_score(score)
         success = score >= SUCCESS_SCORE_THRESHOLD
         
     except Exception as e:
         print(f"[DEBUG] env error: {e}", flush=True)
+        # Even on crash, score stays at safe default 0.01
     finally:
-        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+        # log_end does its own internal clamping too -- belt AND suspenders
+        log_end(task=task_id, success=success, steps=steps_taken, score=score, rewards=rewards)
 
 
 async def main() -> None:

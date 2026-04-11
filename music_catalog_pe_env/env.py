@@ -50,7 +50,7 @@ class MusicCatalogPEEnvironment(Environment):
         
         return self._build_observation(
             result_payload={"message": f"Task '{task_id}' started.", "description": task_config.description},
-            reward=0.0,
+            reward=0.01,
             done=False
         )
 
@@ -137,7 +137,7 @@ class MusicCatalogPEEnvironment(Environment):
         task_config = get_task(self._state.task_id)
         return CatalogObservation(
             done=done,
-            reward=reward if reward is not None else 0.001,
+            reward=max(0.01, min(0.99, float(reward if reward is not None else 0.01))),
             task_id=self._state.task_id,
             step_number=self._state.step_count,
             max_steps=task_config.max_steps if task_config else 0,
@@ -148,7 +148,7 @@ class MusicCatalogPEEnvironment(Environment):
                 "submit_final_valuation"
             ],
             result_payload=result_payload,
-            cumulative_reward=0.0, # Handled implicitly by grader
+            cumulative_reward=0.01, # Clamped to valid range
             discovered_features=self._state.discovered_insights,
             warnings=warnings or [],
             can_submit=self._state.step_count >= 1
