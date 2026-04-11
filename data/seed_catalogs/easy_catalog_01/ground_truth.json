@@ -1,0 +1,21 @@
+{
+  "task_id": "easy_stable_evergreen",
+  "difficulty": "easy",
+  "true_normalized_ttm_revenue": 551247.25,
+  "growth_rate_assumption": 0.02,
+  "stability_score": 0.95,
+  "top_track_concentration": 0.1,
+  "top_platform_concentration": 0.35,
+  "territory_concentration": 0.4,
+  "anomaly_flags": [],
+  "normalized_multiple": 8.5,
+  "true_valuation_base": 4685601.63,
+  "true_valuation_low": 3982761.38,
+  "true_valuation_high": 5388441.87,
+  "correct_recommendation": "acquire",
+  "must_detect_risks": [],
+  "grader_tolerances": {
+    "revenue_pct": 0.1,
+    "valuation_pct": 0.15
+  }
+}

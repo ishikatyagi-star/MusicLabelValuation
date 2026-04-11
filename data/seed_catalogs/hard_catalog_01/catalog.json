@@ -1,0 +1,13 @@
+{
+  "catalog_id": "hard_catalog_01",
+  "catalog_name": "Global Viral Assets",
+  "acquisition_date_assumption": "2026-06-01",
+  "analyst_currency": "USD",
+  "ownership_share_pct": 65.0,
+  "total_tracks": 40,
+  "primary_genres": [
+    "Electronic",
+    "World"
+  ],
+  "notes": "Recent TikTok trend. Need to normalize earnings carefully."
+}

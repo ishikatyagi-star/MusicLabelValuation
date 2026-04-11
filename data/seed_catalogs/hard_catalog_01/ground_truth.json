@@ -1,0 +1,30 @@
+{
+  "task_id": "hard_viral_spike_noisy",
+  "difficulty": "hard",
+  "unadjusted_ttm_revenue": 343991.78,
+  "true_normalized_ttm_revenue": 259920.22,
+  "growth_rate_assumption": 0.0,
+  "stability_score": 0.3,
+  "top_track_concentration": 0.45,
+  "top_platform_concentration": 0.4,
+  "territory_concentration": 0.45,
+  "anomaly_flags": [
+    "VIRAL_SPIKE_LAST_3M",
+    "PARTIAL_RIGHTS_FOCUS_TRACK",
+    "MISSING_DATA"
+  ],
+  "normalized_multiple": 4.5,
+  "true_valuation_base": 1169640.99,
+  "true_valuation_low": 994194.84,
+  "true_valuation_high": 1345087.14,
+  "correct_recommendation": "pass",
+  "must_detect_risks": [
+    "viral_spike",
+    "incomplete_data",
+    "rights_complexity"
+  ],
+  "grader_tolerances": {
+    "revenue_pct": 0.15,
+    "valuation_pct": 0.2
+  }
+}

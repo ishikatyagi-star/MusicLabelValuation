@@ -1,0 +1,13 @@
+{
+  "catalog_id": "medium_catalog_01",
+  "catalog_name": "Urban Beats & Flow",
+  "acquisition_date_assumption": "2026-06-01",
+  "analyst_currency": "USD",
+  "ownership_share_pct": 85.0,
+  "total_tracks": 30,
+  "primary_genres": [
+    "Hip-Hop",
+    "R&B"
+  ],
+  "notes": "Strong recent hits. Checking concentration risk."
+}

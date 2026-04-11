@@ -1,0 +1,8 @@
+platform,revenue_share_pct,stream_share_pct,trailing_12m_revenue,trailing_12m_units
+spotify,35.0,35.0,192936.54,64312179
+youtube,15.0,15.0,82687.09,27562362
+apple,20.0,20.0,110249.45,36749816
+publishing,15.0,0.0,82687.09,0
+neighboring_rights,5.0,0.0,27562.36,0
+sync,5.0,0.0,27562.36,0
+other,5.0,0.0,27562.36,0

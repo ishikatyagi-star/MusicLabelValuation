@@ -1,0 +1,27 @@
+{
+  "task_id": "medium_concentration_risk",
+  "difficulty": "medium",
+  "true_normalized_ttm_revenue": 766282.2,
+  "growth_rate_assumption": -0.05,
+  "stability_score": 0.6,
+  "top_track_concentration": 0.7,
+  "top_platform_concentration": 0.55,
+  "territory_concentration": 0.6,
+  "anomaly_flags": [
+    "HIGH_TRACK_CONCENTRATION",
+    "HIGH_PLATFORM_CONCENTRATION"
+  ],
+  "normalized_multiple": 5.5,
+  "true_valuation_base": 4214552.1,
+  "true_valuation_low": 3582369.29,
+  "true_valuation_high": 4846734.92,
+  "correct_recommendation": "acquire_at_discount",
+  "must_detect_risks": [
+    "top_track_concentration",
+    "youtube_dependency"
+  ],
+  "grader_tolerances": {
+    "revenue_pct": 0.1,
+    "valuation_pct": 0.15
+  }
+}

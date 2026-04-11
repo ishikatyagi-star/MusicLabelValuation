@@ -1,0 +1,14 @@
+{
+  "catalog_id": "easy_catalog_01",
+  "catalog_name": "Sunrise Evergreen Collection",
+  "acquisition_date_assumption": "2026-06-01",
+  "analyst_currency": "USD",
+  "ownership_share_pct": 100.0,
+  "total_tracks": 50,
+  "primary_genres": [
+    "Pop",
+    "Rock",
+    "Indie"
+  ],
+  "notes": "Stable performer. Mostly organic streaming."
+}
