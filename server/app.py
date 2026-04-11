@@ -9,6 +9,10 @@ app = create_app(
     env_name="music_catalog_pe_env"
 )
 
+@app.get("/")
+def read_root():
+    return {"status": "ok", "message": "Music Catalog PE Environment is running. Supported endpoints: /health, /reset, /step, /state"}
+
 def main():
     import uvicorn
     uvicorn.run("server.app:app", host="0.0.0.0", port=8000, reload=True)
