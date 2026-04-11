@@ -86,8 +86,8 @@ async def run_baseline_agent(task_id: str, hf_token: str):
     API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
     client = OpenAI(base_url=API_BASE_URL, api_key=hf_token)
     
-    # Use Gradio 4 `messages` type format
-    chat_history = [{"role": "assistant", "content": f"Starting baseline AI analyst ({MODEL_NAME}) on catalog: `{task_id}`..."}]
+    # Universal Gradio 4.0 format: list of tuples (user, assistant)
+    chat_history = [(None, f"Starting baseline AI analyst ({MODEL_NAME}) on catalog: `{task_id}`...")]
     yield chat_history
     
     from inference import get_model_action, SYSTEM_PROMPT, TEMPERATURE, MAX_TOKENS
@@ -104,18 +104,18 @@ async def run_baseline_agent(task_id: str, hf_token: str):
         if result.done:
             break
             
-        chat_history.append({"role": "assistant", "content": f"*Thinking (Step {step})...*"})
+        chat_history.append((None, f"*Thinking (Step {step})...*"))
         yield chat_history
         
         try:
             action = get_model_action(client, step, last_obs, last_reward, history_list)
         except Exception as e:
-             chat_history[-1] = {"role": "assistant", "content": f"API Error: {e}. Defaulting to summary."}
+             chat_history[-1] = (None, f"API Error: {e}. Defaulting to summary.")
              action = CatalogAction(action_type="inspect_catalog_summary", params={})
              yield chat_history
         
         action_json_str = action.model_dump_json()
-        chat_history.append({"role": "assistant", "content": f"**Decision:**\n```json\n{action_json_str}\n```"})
+        chat_history.append((None, f"**Decision:**\n```json\n{action_json_str}\n```"))
         yield chat_history
         
         result = env_instance.step(action)
@@ -127,11 +127,11 @@ async def run_baseline_agent(task_id: str, hf_token: str):
         last_reward = reward
         
         result_snippet = json.dumps(obs_dump.get("result_payload", {}), indent=2)[:350] + "\n..."
-        chat_history.append({"role": "user", "content": f"**Environment Data:**\n```json\n{result_snippet}\n```"})
+        chat_history.append((f"**Environment Data:**\n```json\n{result_snippet}\n```", None))
         yield chat_history
         
     final_score = max(0.01, min(0.99, float(last_reward)))
-    chat_history.append({"role": "assistant", "content": f"### ✅ Episode Finished!\n**Final Grader Score:** {final_score:.4f}"})
+    chat_history.append((None, f"### ✅ Episode Finished!\n**Final Grader Score:** {final_score:.4f}"))
     yield chat_history
 
 
@@ -189,7 +189,6 @@ def create_ui():
                 agent_chatbot = gr.Chatbot(
                     label="AI Agent Terminal", 
                     height=500,
-                    type="messages",
                     show_label=True
                 )
                 
@@ -278,7 +277,7 @@ def create_ui():
                         outputs=[action_history_md, env_output_json]
                     )
 
-    # Trigger initial reset
-    interface.load(fn=reset_manual_env, inputs=[task_dropdown], outputs=[action_history_md, env_output_json])
+        # Trigger initial reset MUST be inside Blocks context
+        interface.load(fn=reset_manual_env, inputs=[task_dropdown], outputs=[action_history_md, env_output_json])
     
     return interface
