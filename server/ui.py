@@ -71,12 +71,20 @@ def do_submit(ttm, valuation, recommendation, risks_str, task_id):
     payload = json.dumps(obs.result_payload, indent=2, default=str)
     
     # Build a prominent grade display
+    grade_md = ""
+    breakdown = obs.result_payload.get("score_breakdown", {})
+    if breakdown:
+        grade_md += "### Scoring Breakdown\n| Factor | Accuracy |\n|---|---|\n"
+        for k, v in breakdown.items():
+            grade_md += f"| **{k}** | {v} |\n"
+        grade_md += "\n"
+
     if score >= 0.7:
-        grade_md = f"# 🏆 Score: {score:.4f}\nExcellent analysis!"
+        grade_md += f"# 🏆 Final Score: {score:.4f}\nExcellent analysis!"
     elif score >= 0.4:
-        grade_md = f"# 📊 Score: {score:.4f}\nDecent, but room for improvement."
+        grade_md += f"# 📊 Final Score: {score:.4f}\nDecent, but room for improvement."
     else:
-        grade_md = f"# ⚠️ Score: {score:.4f}\nNeeds significant improvement."
+        grade_md += f"# ⚠️ Final Score: {score:.4f}\nNeeds significant improvement."
     
     return "✅ Valuation submitted and graded.", payload, grade_md
 

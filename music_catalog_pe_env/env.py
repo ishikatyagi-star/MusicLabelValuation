@@ -98,7 +98,28 @@ class MusicCatalogPEEnvironment(Environment):
             elif act == "submit_final_valuation":
                 submission = FinalSubmission(**action.params)
                 self._state.final_submission = submission.model_dump()
-                result = {"message": "Final valuation submitted successfully."}
+                
+                # Expose sub-scores
+                try:
+                    from .graders import score_metrics, score_risks, score_recommendation
+                    gt = self._state.ground_truth
+                    sub = self._state.final_submission
+                    m_score = score_metrics(sub, gt)
+                    r_score = score_risks(sub, gt)
+                    rc_score = score_recommendation(sub, gt)
+                    
+                    breakdown = {
+                        "Financial Accuracy (60%)": f"{m_score * 100:.1f}%",
+                        "Risk Detection (20%)": f"{r_score * 100:.1f}%",
+                        "Recommendation (20%)": f"{rc_score * 100:.1f}%"
+                    }
+                except Exception as e:
+                    breakdown = {"error": str(e)}
+
+                result = {
+                    "message": "Final valuation submitted successfully.",
+                    "score_breakdown": breakdown
+                }
                 done = True
                 
             else:
@@ -125,6 +146,11 @@ class MusicCatalogPEEnvironment(Environment):
             "params": action.params,
             "result_summary": "success" if not is_invalid else "failed"
         })
+
+        if isinstance(result, list):
+            result = {"data": result}
+        elif not isinstance(result, dict):
+            result = {"message": str(result)}
 
         return self._build_observation(
             result_payload=result,
