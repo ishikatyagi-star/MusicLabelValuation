@@ -24,15 +24,11 @@ def get_task_details(task_id: str) -> str:
     md = f"""
 ### {task.description}
 
-**Difficulty:** {task.difficulty.upper()}
-**Max Steps:** {task.max_steps}
-
-#### Evaluation Criteria (Ground Truth Highlights)
-- **True Normalized TTM Revenue:** ${gt.get('true_normalized_ttm_revenue', 0):,.2f}
-- **Assumed Base Multiple:** {gt.get('normalized_multiple', 0.0)}x
+**Evaluation Criteria (What you need to find)**
+- **True TTM Revenue:** ${gt.get('true_normalized_ttm_revenue', 0):,.2f}
 - **Target Valuation Base:** ${gt.get('true_valuation_base', 0):,.2f}
-- **Required Risk Detections:** {', '.join(gt.get('must_detect_risks', [])) or 'None'}
-- **Correct Recommendation:** `{gt.get('correct_recommendation', 'N/A').upper()}`
+- **Required Risk Flags:** {', '.join(gt.get('must_detect_risks', [])) or 'None'}
+- **Recommendation:** `{gt.get('correct_recommendation', 'N/A').upper()}`
     """
     return md
 
@@ -42,33 +38,33 @@ manual_env = MusicCatalogPEEnvironment()
 def reset_manual_env(task_id: str):
     obs = manual_env.reset(task_id=task_id)
     return (
-        f"Environment reset. Task: {task_id}", 
-        json.dumps(obs.result_payload, indent=2),
-        f"Steps: {obs.step_number} / {obs.max_steps}",
-        0.0  # Reset reward
+        f"**System:** Environment reset. Loaded catalog: `{task_id}`", 
+        json.dumps(obs.result_payload, indent=2)
     )
 
 def execute_action(action_type: str, action_params_str: str):
     if not action_type:
-        return "No action selected.", "Error", "Error", 0.0
+        return "No action selected.", "{}"
         
     try:
         params = json.loads(action_params_str) if action_params_str.strip() else {}
     except json.JSONDecodeError:
-        return "Invalid JSON in parameters.", "Error", "Error", 0.0
+        return "Error: Invalid JSON.", "{}"
         
     action = CatalogAction(action_type=action_type, params=params)
     obs = manual_env.step(action)
     
-    history_md = f"**Executed:** `{action_type}`\n"
+    history_md = f"**Executed Action:** `{action_type}`\n"
     if obs.warnings:
         history_md += f"**Warnings:** {', '.join(obs.warnings)}\n"
         
+    if action_type == "submit_final_valuation":
+        score = max(0.01, min(0.99, float(obs.reward)))
+        history_md += f"\n### Final Grade: {score:.4f} / 1.0000"
+        
     return (
         history_md,
-        json.dumps(obs.result_payload, indent=2),
-        f"Steps: {obs.step_number} / {obs.max_steps}",
-        obs.reward
+        json.dumps(obs.result_payload, indent=2)
     )
 
 def quick_action(action_type: str):
@@ -80,23 +76,19 @@ def quick_action(action_type: str):
 async def run_baseline_agent(task_id: str, hf_token: str):
     """Runs the inference logic dynamically and yields output to the chatbot."""
     if not hf_token:
-        yield [("System", "Error: HF Token or OpenAI Key required to run the baseline agent. Please enter it below.")]
+        yield [{"role": "assistant", "content": "Error: HF Token or OpenAI Key required to run the baseline agent. Please enter it below."}]
         return
 
     os.environ["HF_TOKEN"] = hf_token
-    # Import here to avoid circular/initialization issues
     from inference import run_task, MODEL_NAME
     from openai import OpenAI
     
     API_BASE_URL = os.environ.get("API_BASE_URL", "https://router.huggingface.co/v1")
     client = OpenAI(base_url=API_BASE_URL, api_key=hf_token)
     
-    chat_history = [("System", f"Starting baseline agent ({MODEL_NAME}) on task: {task_id}...")]
+    # Use Gradio 4 `messages` type format
+    chat_history = [{"role": "assistant", "content": f"Starting baseline AI analyst ({MODEL_NAME}) on catalog: `{task_id}`..."}]
     yield chat_history
-    
-    # We need a way to capture the output of run_task. Since run_task prints to stdout, 
-    # we can temporarily redirect stdout or modify a copy of the inference logic.
-    # For a clean UI experience without heavy refactoring, we will run the environment loop here.
     
     from inference import get_model_action, SYSTEM_PROMPT, TEMPERATURE, MAX_TOKENS
     
@@ -112,24 +104,20 @@ async def run_baseline_agent(task_id: str, hf_token: str):
         if result.done:
             break
             
-        chat_history.append(("System", f"Agent is thinking (Step {step})..."))
+        chat_history.append({"role": "assistant", "content": f"*Thinking (Step {step})...*"})
         yield chat_history
         
-        # Determine action
         try:
-            # Await the API call if we were using an async client, but OpenAI client here is sync inside async func.
-            # We will use the sync call wrapped or just call it (may block event loop slightly, but acceptable for demo).
             action = get_model_action(client, step, last_obs, last_reward, history_list)
         except Exception as e:
-             chat_history[-1] = ("System", f"API Error: {e}. Attempting fallback action.")
+             chat_history[-1] = {"role": "assistant", "content": f"API Error: {e}. Defaulting to summary."}
              action = CatalogAction(action_type="inspect_catalog_summary", params={})
              yield chat_history
         
         action_json_str = action.model_dump_json()
-        chat_history.append((f"Agent Action", f"```json\n{action_json_str}\n```"))
+        chat_history.append({"role": "assistant", "content": f"**Decision:**\n```json\n{action_json_str}\n```"})
         yield chat_history
         
-        # Execute in env
         result = env_instance.step(action)
         obs_dump = result.model_dump()
         reward = max(0.01, min(0.99, float(result.reward if result.reward is not None else 0.01)))
@@ -138,13 +126,12 @@ async def run_baseline_agent(task_id: str, hf_token: str):
         last_obs = obs_dump
         last_reward = reward
         
-        # Show partial result snippet
-        result_snippet = json.dumps(obs_dump.get("result_payload", {}))[:200] + "..."
-        chat_history.append(("Environment Response", f"Reward: {reward:.2f}\n```json\n{result_snippet}\n```"))
+        result_snippet = json.dumps(obs_dump.get("result_payload", {}), indent=2)[:350] + "\n..."
+        chat_history.append({"role": "user", "content": f"**Environment Data:**\n```json\n{result_snippet}\n```"})
         yield chat_history
         
     final_score = max(0.01, min(0.99, float(last_reward)))
-    chat_history.append(("System", f"**Episode Finished!**\nFinal Grader Score: **{final_score:.4f}**"))
+    chat_history.append({"role": "assistant", "content": f"### ✅ Episode Finished!\n**Final Grader Score:** {final_score:.4f}"})
     yield chat_history
 
 
@@ -155,7 +142,6 @@ def create_ui():
     with open(css_path, "r") as f:
         custom_css = f.read()
 
-    # Use a base theme that we heavily override with CSS
     theme = gr.themes.Default(
         font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"],
         primary_hue="zinc",
@@ -165,21 +151,19 @@ def create_ui():
 
     with gr.Blocks(theme=theme, css=custom_css, title="Music Catalog PE Dashboard") as interface:
         
-        # Header section
         with gr.Column(elem_classes=["dashboard-header"]):
-            gr.Markdown("# Music Catalog PE Environment\nEvaluate private equity music catalogs interactively or using an AI agent.")
+            gr.Markdown("# 🎵 Music Catalog Valuation Engine")
 
-        # Main Layout
         with gr.Row():
             
             # --- LEFT COLUMN: Context & Baseline Agent ---
             with gr.Column(scale=1):
-                gr.Markdown("## 1. Task Context")
+                gr.Markdown("## Task Selection")
                 
                 task_dropdown = gr.Dropdown(
                     choices=list(TASKS.keys()), 
                     value="easy_stable_evergreen", 
-                    label="Select Diligence Task",
+                    label="Active Catalog Profile",
                     interactive=True
                 )
                 
@@ -192,8 +176,7 @@ def create_ui():
                 )
                 
                 gr.Markdown("---")
-                gr.Markdown("## 2. Execute Baseline Agent")
-                gr.Markdown("Run the LLM (Qwen 72B via API) against the selected environment.")
+                gr.Markdown("## Baseline AI Run")
                 
                 hf_token_input = gr.Textbox(
                     label="API Token (HF / OpenAI)", 
@@ -201,11 +184,12 @@ def create_ui():
                     placeholder="hf_..."
                 )
                 
-                run_agent_btn = gr.Button("▶ Run Baseline Agent", variant="primary")
+                run_agent_btn = gr.Button("▶ Autopilot (Run AI Agent)", variant="primary")
                 
                 agent_chatbot = gr.Chatbot(
-                    label="Agent Execution Log", 
-                    height=400,
+                    label="AI Agent Terminal", 
+                    height=500,
+                    type="messages",
                     show_label=True
                 )
                 
@@ -217,49 +201,32 @@ def create_ui():
 
             # --- RIGHT COLUMN: Human Manual Play ---
             with gr.Column(scale=2):
-                gr.Markdown("## Manual Analyst Console")
-                gr.Markdown("Play the role of the AI agent. Request data views, analyze metrics, and submit a final valuation.")
+                gr.Markdown("## Analyst Workflow Console")
+                gr.Markdown("Investigate the data yourself using the quick-actions below.")
                 
-                with gr.Row():
-                    reset_env_btn = gr.Button("🔄 Initialize / Reset Environment")
-                    step_status = gr.Textbox(label="Step Count", value="Steps: 0 / 25", interactive=False)
-                    reward_status = gr.Number(label="Last Reward / Grade", value=0.0, interactive=False)
+                reset_env_btn = gr.Button("🔄 Reset Interface to selected Catalog")
                 
                 # Action Quick Buttons (Dashboard Cards style)
-                gr.Markdown("### Investigation Actions")
                 with gr.Row():
-                    btn_summary = gr.Button("View Summary", variant="secondary")
-                    btn_platforms = gr.Button("View Platform Mix", variant="secondary")
-                    btn_territories = gr.Button("View Territory Mix", variant="secondary")
-                    btn_anomalies = gr.Button("Run Anomaly Scan", variant="secondary")
-                    btn_ttm = gr.Button("Compute TTM", variant="secondary")
-
-                # Custom Action form
-                with gr.Accordion("Advanced / Custom Action", open=False):
-                    manual_action_type = gr.Dropdown(
-                        choices=[
-                            "inspect_catalog_summary", "inspect_top_tracks", "inspect_platform_mix", 
-                            "inspect_territory_mix", "inspect_monthly_revenue_trend", "inspect_track_revenue_trend",
-                            "inspect_anomalies", "compute_normalized_ttm"
-                        ], 
-                        label="Action Type"
-                    )
-                    manual_action_params = gr.Textbox(label="Parameters (JSON)", value="{}")
-                    btn_custom_action = gr.Button("Execute Custom Action")
+                    btn_summary = gr.Button("📊 View Summary", variant="secondary")
+                    btn_platforms = gr.Button("🎧 Platform Mix", variant="secondary")
+                    btn_territories = gr.Button("🌍 Territory Mix", variant="secondary")
+                with gr.Row():
+                    btn_anomalies = gr.Button("⚠️ Run Anomaly Scan", variant="secondary")
+                    btn_ttm = gr.Button("📈 Compute TTM Revenue", variant="secondary")
 
                 # Output Viewer
-                gr.Markdown("### Environment Response")
-                action_history_md = gr.Markdown("**Executed:** `-`")
-                env_output_json = gr.JSON(label="Observation Data")
+                gr.Markdown("### 📥 Data Terminal")
+                action_history_md = gr.Markdown("**System:** Ready for interaction.")
+                env_output_json = gr.JSON(label="Database Response")
 
                 # Wiring standard actions
                 reset_env_btn.click(
                     fn=reset_manual_env, 
                     inputs=[task_dropdown], 
-                    outputs=[action_history_md, env_output_json, step_status, reward_status]
+                    outputs=[action_history_md, env_output_json]
                 )
                 
-                # Button bindings
                 action_map = {
                     btn_summary: "inspect_catalog_summary",
                     btn_platforms: "inspect_platform_mix",
@@ -271,29 +238,22 @@ def create_ui():
                 for btn, act_name in action_map.items():
                     btn.click(
                         fn=lambda a=act_name: quick_action(a),
-                        outputs=[action_history_md, env_output_json, step_status, reward_status]
+                        outputs=[action_history_md, env_output_json]
                     )
-                    
-                btn_custom_action.click(
-                    fn=execute_action,
-                    inputs=[manual_action_type, manual_action_params],
-                    outputs=[action_history_md, env_output_json, step_status, reward_status]
-                )
                 
                 # Final Valuation Form
-                with gr.Box() if hasattr(gr, "Box") else gr.Group(): # Fallback for newer Gradio versions
-                    gr.Markdown("### Submit Final Valuation")
-                    gr.Markdown("Ready? Submit your final analysis to the deterministic grader.")
+                with gr.Box() if hasattr(gr, "Box") else gr.Group():
+                    gr.Markdown("### 📄 Submit Investment Memo")
                     
                     with gr.Row():
-                        val_ttm = gr.Number(label="Estimated TTM Revenue ($)", value=0)
-                        val_base = gr.Number(label="Valuation Base ($)", value=0)
+                        val_ttm = gr.Number(label="Final TTM Revenue ($)", value=0)
+                        val_base = gr.Number(label="Total Valuation ($)", value=0)
                     
                     with gr.Row():
-                        val_rec = gr.Dropdown(choices=["acquire", "acquire_at_discount", "pass"], label="Recommendation")
-                        val_risks = gr.Textbox(label="Risk Flags (comma separated)", placeholder="e.g. top_track_concentration, viral_spike")
+                        val_rec = gr.Dropdown(choices=["acquire", "acquire_at_discount", "pass"], label="Recommendation", value="acquire")
+                        val_risks = gr.Textbox(label="Risk Flags (e.g. VIRAL_SPIKE_LAST_3M)", placeholder="Comma separated strings")
                         
-                    btn_submit_final = gr.Button("Submit Final Evaluation", variant="primary")
+                    btn_submit_final = gr.Button("Grade My Memo 🚀", variant="primary")
                     
                     def submit_final_form(ttm, base, rec, risks, t_id):
                         risk_list = [r.strip() for r in risks.split(",") if r.strip()]
@@ -307,19 +267,18 @@ def create_ui():
                             "estimated_key_platforms": [],
                             "estimated_risk_flags": risk_list,
                             "recommendation": rec,
-                            "confidence_score": 0.8,
-                            "memo": "Manual UI submission."
+                            "confidence_score": 0.9,
+                            "memo": "Manual Analyst review."
                         }
                         return execute_action("submit_final_valuation", json.dumps(params))
                         
                     btn_submit_final.click(
                         fn=submit_final_form,
                         inputs=[val_ttm, val_base, val_rec, val_risks, task_dropdown],
-                        outputs=[action_history_md, env_output_json, step_status, reward_status]
+                        outputs=[action_history_md, env_output_json]
                     )
 
-        # Trigger initial reset MUST be inside Blocks context
-        interface.load(fn=reset_manual_env, inputs=[task_dropdown], outputs=[action_history_md, env_output_json, step_status, reward_status])
+    # Trigger initial reset
+    interface.load(fn=reset_manual_env, inputs=[task_dropdown], outputs=[action_history_md, env_output_json])
     
     return interface
-

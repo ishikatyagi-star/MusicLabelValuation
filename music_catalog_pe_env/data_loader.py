@@ -62,5 +62,5 @@ class CatalogDataLoader:
             "mean_monthly_revenue": round(mean, 2),
             "std_dev": round(std, 2),
             "max_z_score": round(z_max, 2),
-            "volatility_warning": z_max > 2.0
+            "volatility_warning": bool(z_max > 2.0)
         }
