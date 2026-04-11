@@ -318,8 +318,8 @@ def create_ui():
                         outputs=[action_history_md, env_output_json, step_status, reward_status]
                     )
 
-    # Trigger initial reset
-    interface.load(fn=reset_manual_env, inputs=[task_dropdown], outputs=[action_history_md, env_output_json, step_status, reward_status])
+        # Trigger initial reset MUST be inside Blocks context
+        interface.load(fn=reset_manual_env, inputs=[task_dropdown], outputs=[action_history_md, env_output_json, step_status, reward_status])
     
     return interface
 
